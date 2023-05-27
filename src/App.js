@@ -1,62 +1,71 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 
-import MoviesList from "./components/MoviesList";
-import "./App.css";
-import { useCallback } from "react";
+import MoviesList from './components/MoviesList';
+import AddMovie from './components/AddMovie';
+import './App.css';
 
 function App() {
-  const [movieList, setMovieList] = useState([]);
+  const [movies, setMovies] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [showError, setShowError] = useState(null);
-  const [clearTimeInterval, setClearTimeInterval] = useState(false);
-  const clearTimeIntervalFunc = () => {
-    setClearTimeInterval(true);
-  };
+  const [error, setError] = useState(null);
 
-  
-
-  const dataStored = useCallback(async () => {
+  const fetchMoviesHandler = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-
-      const data = await fetch("https://swapi.dev/api/films");
-
-      if (!data.ok) {
-        throw new Error("something went retrying");
+      const response = await fetch('https://swapi.dev/api/films/');
+      if (!response.ok) {
+        throw new Error('Something went wrong!');
       }
 
-      const gotData = await data.json();
+      const data = await response.json();
 
-      setIsLoading(false);
-
-      const updatedArray = gotData.results.map((item) => {
+      const transformedMovies = data.results.map((movieData) => {
         return {
-          id: item.episode_id,
-          title: item.title,
-          openingText: item.opening_crawl,
-          releaseDate: item.release_date,
+          id: movieData.episode_id,
+          title: movieData.title,
+          openingText: movieData.opening_crawl,
+          releaseDate: movieData.release_date,
         };
       });
-      setMovieList(updatedArray);
+      setMovies(transformedMovies);
     } catch (error) {
-      setShowError(error.message);
+      setError(error.message);
     }
-  },[]);
+    setIsLoading(false);
+  }, []);
+
   useEffect(() => {
-    dataStored();
-  }, [dataStored]);
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
+
+  function addMovieHandler(movie) {
+    console.log(movie);
+  }
+
+  let content = <p>Found no movies.</p>;
+
+  if (movies.length > 0) {
+    content = <MoviesList movies={movies} />;
+  }
+
+  if (error) {
+    content = <p>{error}</p>;
+  }
+
+  if (isLoading) {
+    content = <p>Loading...</p>;
+  }
 
   return (
     <React.Fragment>
-      <section></section>
       <section>
-        {isLoading && !showError && <p>Loading...</p>}
-        {!isLoading && <MoviesList movies={movieList} />}
-        {!isLoading && movieList.length === 0 && <p>click on fetch</p>}
-        {showError && <button onClick={clearTimeIntervalFunc}>cancal</button>}
-
-        <p>{showError}</p>
+        <AddMovie onAddMovie={addMovieHandler} />
       </section>
+      <section>
+        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
+      </section>
+      <section>{content}</section>
     </React.Fragment>
   );
 }
