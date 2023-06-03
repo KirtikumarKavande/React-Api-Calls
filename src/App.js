@@ -1,91 +1,77 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 
 import MoviesList from "./components/MoviesList";
-import AddMovie from "./components/AddMovie";
 import "./App.css";
 
 function App() {
-  const [movies, setMovies] = useState([]);
+  const [movieList, setMovieList] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  //get request----------------------
-  const fetchMoviesHandler = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        "https://api-call-51521-default-rtdb.firebaseio.com/movies.json"
-      );
-      if (!response.ok) {
-        throw new Error("Something went wrong!");
-      }
-
-      const data = await response.json();
-
-      const updatedArray = [];
-
-      for (let key in data) {
-        updatedArray.push({
-          id: key,
-          title: data[key].title,
-          openingText: data[key].openingText,
-          releaseDate: data[key].releaseDate,
-        });
-      }
-
-      setMovies(updatedArray);
-    } catch (error) {
-      setError(error.message);
-    }
-    setIsLoading(false);
-  }, []);
+  const [showError, setShowError] = useState(null);
+  const [isError, setIsError] = useState(false);
+  const [clearTimeInterval, setClearTimeInterval] = useState(false);
 
   useEffect(() => {
-    fetchMoviesHandler();
-  }, [fetchMoviesHandler]);
+    if (isError) {
+      const id = setInterval(async () => {
+        const data = await fetch("https://swapi.dev/api/film");
+      }, 1000);
 
-  //send request
-  async function addMovieHandler(movie) {
-    const response = await fetch(
-      "https://api-call-51521-default-rtdb.firebaseio.com/movies.json",
-      {
-        method: "POST",
+      return () => {
+        clearInterval(id);
+      };
+    }
+  }, [isError, clearTimeInterval]);
 
-        body: JSON.stringify(movie),
-        headers: {
-          "content-type": "application/json",
-        },
+  const HandlefetchMovieData = async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetch("https://swapi.dev/api/film");
+
+      if (!data.ok) {
+        setIsError(true);
+        console.log("data ok", data.ok);
+        throw new Error("something went retrying");
       }
-    );
-    const data = await response.json();
-  }
 
-  //delete request
+      const gotData = await data.json();
 
-  let content = <p>Found no movies.</p>;
+      setIsLoading(false);
 
-  if (movies.length > 0) {
-    content = <MoviesList movies={movies} />;
-  }
-
-  if (error) {
-    content = <p>{error}</p>;
-  }
-
-  if (isLoading) {
-    content = <p>Loading...</p>;
-  }
+      const updatedArray = gotData.results.map((item) => {
+        return {
+          id: item.episode_id,
+          title: item.title,
+          openingText: item.opening_crawl,
+          releaseDate: item.release_date,
+        };
+      });
+      setMovieList(updatedArray);
+    } catch (error) {
+      setShowError(error.message);
+    }
+  };
 
   return (
     <React.Fragment>
       <section>
-        <AddMovie onAddMovie={addMovieHandler} />
+        <button onClick={HandlefetchMovieData}>Fetch Movies</button>
       </section>
       <section>
-        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
+        {isLoading && !showError && <p>Loading...</p>}
+        {!isLoading && <MoviesList movies={movieList} />}
+        {!isLoading && movieList.length === 0 && <p>click on fetch</p>}
+        {showError && (
+          <button
+            onClick={() => {
+              setIsError(false);
+            }}
+          >
+            cancal
+          </button>
+        )}
+
+        <p>{showError}</p>
       </section>
-      <section>{content}</section>
     </React.Fragment>
   );
 }
